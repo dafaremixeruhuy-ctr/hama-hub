@@ -578,7 +578,7 @@ local function CreateUI()
     end
     minBtn.MouseButton1Click:Connect(toggleMinimize)
 
-    -- ═══ TAB PIANO ═══
+  do  -- ═══ TAB PIANO ═══
     local pagePiano = MakeScrollPage(content, "PIANO", true)
     pages["PIANO"] = pagePiano
     local Spam = {Running=false, Gen=0, FireCount=0, Connections={}, RateCount=0, RateWin=os.clock(), SelectedRemotes={}, KeyPool={}, Format="positional"}
@@ -3386,7 +3386,7 @@ local function CreateUI()
     local copy = MakeLbl(pageAbout, "© 2026 HAMA Universal Hub.", UDim2.new(0,0,0,260), UDim2.new(1,0,0,20), Color3.fromRGB(100,100,100))
     copy.TextXAlignment = Enum.TextXAlignment.Center
 
-    -- ═══ CLOSE ═══
+end -- ═══ CLOSE ═══
     closeBtn.MouseButton1Click:Connect(function()
         gui:Destroy()
     end)
