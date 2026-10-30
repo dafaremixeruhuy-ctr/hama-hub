@@ -3132,9 +3132,9 @@ local function CreateUI()
     -- ═══ TAB SHIELD (GitHub whitelist) ═══
     local pageShield = MakeScrollPage(content, "SHIELD", false)
     pages["SHIELD"] = pageShield
-    local WHITELIST_CONFIG = {
-        DevURL = "https://raw.githubusercontent.com/USERNAME/REPO/main/dev.txt",
-        PremiumURL = "https://raw.githubusercontent.com/USERNAME/REPO/main/premium.txt",
+   local WHITELIST_CONFIG = {
+    DevURL = "https://raw.githubusercontent.com/dafaremixeruhuy-ctr/hama-hub/main/dev.txt",
+    PremiumURL = "https://raw.githubusercontent.com/dafaremixeruhuy-ctr/hama-hub/main/premium.txt",
         CacheTTL = 300,
         Fallback = {Dev={["dpnvhr"]=true,["fire6uns"]=true}, Premium={}},
     }
