@@ -1,5 +1,5 @@
 -- ═════════════════════════════════════════════════════════════
--- HAMA UNIVERSAL HUB V4.0 (JEYHUB Monochrome Edition)
+-- HAMA UNIVERSAL HUB V4.0 
 -- ═════════════════════════════════════════════════════════════
 
 local Services = {
@@ -401,7 +401,7 @@ local function CreateUI()
     
     local title = Instance.new("TextLabel", header)
     title.Size = UDim2.new(1,-100,1,0); title.Position = UDim2.new(0,14,0,0)
-    title.BackgroundTransparency = 1; title.Text = "🔥 HAMA UNIVERSAL V4.0"
+    title.BackgroundTransparency = 1; title.Text = "HAMA UNIVERSAL V4.0"
     title.TextColor3 = Color3.fromRGB(255,255,255); title.Font = Enum.Font.GothamBold
     title.TextSize = 15; title.TextXAlignment = Enum.TextXAlignment.Left; title.ZIndex = 7
     
@@ -2532,7 +2532,7 @@ local function CreateUI()
     do
         local aboutT = MakeLbl(pageAbout, "HAMA UNIVERSAL HUB", UDim2.new(0,0,0,10), UDim2.new(1,0,0,30), Color3.fromRGB(255,255,255))
         aboutT.TextSize = 18; aboutT.TextXAlignment = Enum.TextXAlignment.Center
-        local aboutV = MakeLbl(pageAbout, "Version 4.0 | JEYHUB Monochrome Edition", UDim2.new(0,0,0,40), UDim2.new(1,0,0,20), Color3.fromRGB(150,150,155))
+        local aboutV = MakeLbl(pageAbout, "Version 4.0 | HAMA Monochrome Edition", UDim2.new(0,0,0,40), UDim2.new(1,0,0,20), Color3.fromRGB(150,150,155))
         aboutV.TextXAlignment = Enum.TextXAlignment.Center
         local devLbl = MakeLbl(pageAbout, "— DEVELOPED BY —", UDim2.new(0,0,0,80), UDim2.new(1,0,0,20), Color3.fromRGB(200,200,205))
         devLbl.TextXAlignment = Enum.TextXAlignment.Center
