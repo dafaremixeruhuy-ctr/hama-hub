@@ -14,7 +14,7 @@ local Services = {
 }
 local Player = Services.Players.LocalPlayer
 local RunService = Services.RunService
-local UIS = Services.UserInputService
+local UIS = game:GetService("UserInputService")
 local TweenService = Services.TweenService
 local HttpService = Services.HttpService
 local Workspace = Services.Workspace
@@ -314,10 +314,12 @@ local function ToggleNoclip(state)
         end)
     end
 end
-UIS.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    if input.KeyCode == State.FlyKeybind then ToggleFly(not State.FlyEnabled) end
-end)
+if UIS then
+    UIS.InputBegan:Connect(function(input, gp)
+        if gp then return end
+        if input.KeyCode == State.FlyKeybind then ToggleFly(not State.FlyEnabled) end
+    end)
+end
 
 -- ═══ LEVEL CONFIG ═══
 local LEVEL_CFG = {}
@@ -498,6 +500,20 @@ local function CreateUI()
     main.Active = true; main.ClipsDescendants = false; main.ZIndex = 5
     Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
 
+    -- ═══ AUTO SCALE UNTUK HP ═══
+    local uiScale = Instance.new("UIScale", main)
+    local function UpdateScale()
+        if UIS.TouchEnabled and not UIS.KeyboardEnabled then
+            -- Kalau di HP, maksa scale jadi 0.6 (biar muat)
+            uiScale.Scale = 0.6
+        else
+            -- Kalau di PC, biarin normal (1.0)
+            uiScale.Scale = 1
+        end
+    end
+    UpdateScale()
+    -- ═══ END AUTO SCALE ═══
+
     local sizeC = Instance.new("UISizeConstraint", main)
     sizeC.MaxSize = Vector2.new(640, 460); sizeC.MinSize = Vector2.new(420, 280)
 
@@ -529,20 +545,32 @@ local function CreateUI()
     closeBtn.TextColor3 = Color3.fromRGB(255,255,255); closeBtn.Font = Enum.Font.GothamBold; closeBtn.TextSize = 14; closeBtn.ZIndex = 7
     Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0,6); Apply3D(closeBtn)
 
-    local dragging, dragStart, startPos = false, nil, nil
-    header.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            if i.Position.X > header.AbsolutePosition.X + header.AbsoluteSize.X - 70 then return end
-            dragging = true; dragStart = i.Position; startPos = main.Position
-        end
-    end)
-    UIS.InputChanged:Connect(function(i)
-        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-            local d = i.Position - dragStart
-            main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
-        end
-    end)
-    UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
+       -- ═══ DRAG SYSTEM (PC & HP) ═══
+       local dragging, dragStart, startPos = false, nil, nil
+    
+       header.InputBegan:Connect(function(i)
+           if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+               -- Jangan drag kalau yang dipencet tombol Close (X) atau Minimize (—)
+               if i.Position.X > header.AbsolutePosition.X + header.AbsoluteSize.X - 70 then return end
+               dragging = true
+               dragStart = i.Position
+               startPos = main.Position
+           end
+       end)
+   
+       UIS.InputChanged:Connect(function(i)
+           if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+               local delta = i.Position - dragStart
+               main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+           end
+       end)
+   
+       UIS.InputEnded:Connect(function(i) 
+           if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then 
+               dragging = false 
+           end 
+       end)
+       -- ═══ END DRAG SYSTEM ═══
 
     -- SIDEBAR & CONTENT
     local sidebar = Instance.new("Frame", main)
@@ -555,7 +583,15 @@ local function CreateUI()
     content.BackgroundTransparency = 1; content.ClipsDescendants = true; content.ZIndex = 6
 
     -- ═══ FIX LOGIC MINIMIZE (Tombol Terpisah) ═══
-    local miniIcon = Instance.new("TextButton", gui)
+       -- ═══ FIX LOGIC MINIMIZE (Tombol Terpisah) ═══
+       local miniGui = Instance.new("ScreenGui")
+       miniGui.Name = "HamaMiniGui"
+       miniGui.ResetOnSpawn = false
+       miniGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+       miniGui.DisplayOrder = 1000 -- Biar di atas UI utama
+       miniGui.Parent = pg
+   
+       local miniIcon = Instance.new("TextButton", miniGui) -- <-- Ganti parent jadi miniGui
     miniIcon.Name = "MiniIcon"
     miniIcon.Size = UDim2.new(0, 50, 0, 50)
     miniIcon.Position = UDim2.new(0, 50, 0, 50) -- Posisi awal
@@ -566,6 +602,9 @@ local function CreateUI()
     miniIcon.TextSize = 24
     miniIcon.ZIndex = 10
     miniIcon.Visible = false
+        -- Bikin mini icon punya scale sendiri (biar gak gede di HP)
+        local miniScale = Instance.new("UIScale", miniIcon)
+        miniScale.Scale = uiScale.Scale -- Ngikutin scale UI utama
     Instance.new("UICorner", miniIcon).CornerRadius = UDim.new(1, 0)
     local miniStroke = Instance.new("UIStroke", miniIcon)
    miniStroke.Color = Color3.fromRGB(255, 255, 255); miniStroke.Thickness = 0
@@ -573,16 +612,15 @@ local function CreateUI()
     local isMiniDragging = false
     local miniDragStart, miniStartPos = nil, nil
 
-    -- Tombol Minimize (—) diklik
+            -- Tombol Minimize (—) diklik
     minBtn.MouseButton1Click:Connect(function()
-        main.Visible = false
+        gui.Enabled = false -- Matiin UI utama (tapi miniGui aman)
+        miniIcon.Position = UDim2.new(0.5, 0, 0.5, 0) -- Munculin di tengah
         miniIcon.Visible = true
-        -- Posisi miniIcon ngikutin posisi main terakhir biar transisinya enak dilihat
-        miniIcon.Position = main.Position
     end)
 
-    -- Fitur Drag untuk Mini Icon
-    miniIcon.InputBegan:Connect(function(i)
+      -- Fitur Drag untuk Mini Icon
+      miniIcon.InputBegan:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
             isMiniDragging = true
             miniDragStart = i.Position
@@ -600,16 +638,14 @@ local function CreateUI()
     UIS.InputEnded:Connect(function(i)
         if isMiniDragging and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then
             isMiniDragging = false
-            -- Kalau digeser cuma dikit (kurang dari 5 pixel), berarti cuma diklik -> RESTORE UI
+            -- Kalau cuma diklik (bukan digeser)
             if (i.Position - miniDragStart).Magnitude < 5 then
                 miniIcon.Visible = false
-                main.Visible = true
-                -- Biar posisi UI utama balik ke tengah pas di-restore
-                main.Position = UDim2.new(0.5, 0, 0.5, 0) 
+                gui.Enabled = true -- Nyalain lagi UI utama
+                main.Position = UDim2.new(0.5, 0, 0.5, 0) -- Balikin ke tengah
             end
         end
     end)
-
     local tabs = {"PIANO","PLAYER","VOID","PHYSIC","FOREST","SERVER","SHIELD","ABOUT"}
     local tabBtns, pages = {}, {}
     for i, name in ipairs(tabs) do
@@ -1315,52 +1351,65 @@ StartSpam = function()
              end
              return pos + Vector3.new(0, 10, 0)
          end
-         local function StopPhy()
-             phyActive = false
-             if phyConn then phyConn:Disconnect(); phyConn = nil end
-             for p in pairs(managed) do CleanupPart(p) end
-             managed = {}
-             UHL(phyStatus, "Status: Idle"); phyToggle.Text = "START PHYSIC"; phyToggle.BackgroundColor3 = Color3.fromRGB(25,25,30)
-         end
-         local function StartPhy()
-             phyActive = true; managed = {}; phyTime = 0
-             phyToggle.Text = "STOP PHYSIC"; phyToggle.BackgroundColor3 = Color3.fromRGB(255,255,255); phyToggle.TextColor3 = Color3.fromRGB(0,0,0)
-             phyConn = RunService.Heartbeat:Connect(function(dt)
-                 if not phyActive then return end
-                 ExpandSimulation(); phyTime = phyTime + dt
-                 local mc = Player.Character; local hr = mc and mc:FindFirstChild("HumanoidRootPart")
-                 local hd = mc and mc:FindFirstChild("Head")
-                 if not hr or not hd then StopPhy(); return end
-                 local hp = hd.Position + Vector3.new(0, 3, 0)
-                 for _, p in pairs(Workspace:GetDescendants()) do
-                     if IsPartValid(p) then
-                         if (p.Position - hp).Magnitude < phyRad then SetupAlign(p) end
-                     end
-                 end
-                 local total = 0
-                 for _ in pairs(managed) do total = total + 1 end
-                 local active, idx = 0, 0
-                 for p, d in pairs(managed) do
-                     if p.Parent and IsPartValid(p) then
-                         idx = idx + 1; active = active + 1
-                         local tp = GetTargetPos(phyMode, hp, d, idx, total, phyTime)
-                         if phyMode == "STACK" then
-                             d.Att.WorldPosition = tp; p.Velocity = Vector3.new(0, 0.5, 0)
-                         else
-                             d.Att.WorldPosition = tp; p.Velocity = Vector3.zero
-                             p.RotVelocity = Vector3.new(math.random()*5, math.random()*5, math.random()*5)
-                         end
-                     else CleanupPart(p) end
-                 end
-                 UHL(phyStatus, "Active: " .. active)
-             end)
-         end
-         local phyToggle = MakeBtn(pagePhysic, "START PHYSIC", UDim2.new(0,0,0,87), UDim2.new(1,0,0,36), Color3.fromRGB(25,25,30))
-         phyToggle.MouseButton1Click:Connect(function()
-             if phyActive then StopPhy() else StartPhy() end
-         end)
-         State.PhysicStop = StopPhy
-     end
+                        -- ═══ FIX BUG PHYSIC: phyToggle dideklarasikan duluan ═══
+        local phyToggle
+
+        local function StopPhy()
+            phyActive = false
+            if phyConn then phyConn:Disconnect(); phyConn = nil end
+            for p in pairs(managed) do CleanupPart(p) end
+            managed = {}
+            UHL(phyStatus, "Status: Idle")
+            if phyToggle then
+                phyToggle.Text = "START PHYSIC"
+                phyToggle.BackgroundColor3 = Color3.fromRGB(25,25,30)
+                phyToggle.TextColor3 = Color3.fromRGB(255,255,255)
+            end
+        end
+        
+        local function StartPhy()
+            phyActive = true; managed = {}; phyTime = 0
+            if phyToggle then
+                phyToggle.Text = "STOP PHYSIC"
+                phyToggle.BackgroundColor3 = Color3.fromRGB(255,255,255)
+                phyToggle.TextColor3 = Color3.fromRGB(0,0,0)
+            end
+            phyConn = RunService.Heartbeat:Connect(function(dt)
+                if not phyActive then return end
+                ExpandSimulation(); phyTime = phyTime + dt
+                local mc = Player.Character; local hr = mc and mc:FindFirstChild("HumanoidRootPart")
+                local hd = mc and mc:FindFirstChild("Head")
+                if not hr or not hd then StopPhy(); return end
+                local hp = hd.Position + Vector3.new(0, 3, 0)
+                for _, p in pairs(Workspace:GetDescendants()) do
+                    if IsPartValid(p) then
+                        if (p.Position - hp).Magnitude < phyRad then SetupAlign(p) end
+                    end
+                end
+                local total = 0
+                for _ in pairs(managed) do total = total + 1 end
+                local active, idx = 0, 0
+                for p, d in pairs(managed) do
+                    if p.Parent and IsPartValid(p) then
+                        idx = idx + 1; active = active + 1
+                        local tp = GetTargetPos(phyMode, hp, d, idx, total, phyTime)
+                        if phyMode == "STACK" then
+                            d.Att.WorldPosition = tp; p.Velocity = Vector3.new(0, 0.5, 0)
+                        else
+                            d.Att.WorldPosition = tp; p.Velocity = Vector3.zero
+                            p.RotVelocity = Vector3.new(math.random()*5, math.random()*5, math.random()*5)
+                        end
+                    else CleanupPart(p) end
+                end
+                UHL(phyStatus, "Active: " .. active)
+            end)
+        end
+        
+        phyToggle = MakeBtn(pagePhysic, "START PHYSIC", UDim2.new(0,0,0,87), UDim2.new(1,0,0,36), Color3.fromRGB(25,25,30))
+        phyToggle.MouseButton1Click:Connect(function()
+            if phyActive then StopPhy() else StartPhy() end
+        end)
+        State.PhysicStop = StopPhy
 
         -- ═══ TAB FOREST ═══
     local pageForest = MakeScrollPage(content, "FOREST", false)
@@ -2151,6 +2200,73 @@ StartSpam = function()
                 end
             end
         end
+
+                -- ═══ FITUR SPAM TOOLS (JEYHUB STYLE) ═══
+                local rkCycleOn = false
+                local rkCycleConn = nil
+        
+                local function GetRockTool()
+                    local char = Player.Character
+                    local bp = Player:FindFirstChild("Backpack")
+                    if char then
+                        for _, t in ipairs(char:GetChildren()) do
+                            if t:IsA("Tool") and (t.Name == "Box" or t.Name == "box") then return t end
+                        end
+                    end
+                    if bp then
+                        for _, t in ipairs(bp:GetChildren()) do
+                            if t:IsA("Tool") and (t.Name == "Box" or t.Name == "box") then return t end
+                        end
+                    end
+                    return nil
+                end
+        
+                local rkEquipBtn = MakeBtn(rkPage, "EQUIP ROCK BOX", UDim2.new(0,0,0,80), UDim2.new(0.48,-2,0,26), Color3.fromRGB(25,25,30))
+                rkEquipBtn.MouseButton1Click:Connect(function()
+                    local tool = GetRockTool()
+                    local hum = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
+                    if tool and hum and tool.Parent ~= Player.Character then
+                        hum:EquipTool(tool)
+                    end
+                end)
+        
+                local rkUnequipBtn = MakeBtn(rkPage, "UNEQUIP BOX", UDim2.new(0.52,2,0,80), UDim2.new(0.48,-2,0,26), Color3.fromRGB(25,25,30))
+                rkUnequipBtn.MouseButton1Click:Connect(function()
+                    local hum = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
+                    if hum then pcall(function() hum:UnequipTools() end) end
+                end)
+        
+                local rkSpamToolsBtn = MakeBtn(rkPage, "SPAM TOOLS: OFF", UDim2.new(0,0,0,110), UDim2.new(1,0,0,26), Color3.fromRGB(25,25,30))
+                rkSpamToolsBtn.MouseButton1Click:Connect(function()
+                    rkCycleOn = not rkCycleOn
+                    rkSpamToolsBtn.Text = "SPAM TOOLS: " .. (rkCycleOn and "ON" or "OFF")
+                    rkSpamToolsBtn.BackgroundColor3 = rkCycleOn and Color3.fromRGB(255,255,255) or Color3.fromRGB(25,25,30)
+                    rkSpamToolsBtn.TextColor3 = rkCycleOn and Color3.fromRGB(0,0,0) or Color3.fromRGB(255,255,255)
+        
+                    if rkCycleOn then
+                        if not rkCycleConn then
+                            rkCycleConn = RunService.Heartbeat:Connect(function()
+                                if not rkCycleOn then return end
+                                local tool = GetRockTool()
+                                local char = Player.Character
+                                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                                
+                                if tool and hum then
+                                    if tool.Parent == char then
+                                        pcall(function() hum:UnequipTools() end)
+                                    else
+                                        pcall(function() hum:EquipTool(tool) end)
+                                    end
+                                end
+                            end)
+                        end
+                    else
+                        if rkCycleConn then rkCycleConn:Disconnect(); rkCycleConn = nil end
+                        local hum = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
+                        if hum then pcall(function() hum:UnequipTools() end) end
+                    end
+                end)
+                -- ═══ END FITUR SPAM TOOLS ═══
         
         local rkAutoBtn = MakeBtn(rkPage, "AUTO FLING: OFF", UDim2.new(0,0,0,128), UDim2.new(1,0,0,32), Color3.fromRGB(25,25,30))
         rkAutoBtn.MouseButton1Click:Connect(function()
@@ -2759,25 +2875,27 @@ StartSpam = function()
         copy.TextXAlignment = Enum.TextXAlignment.Center
     end
 
-    -- ═══ CLOSE ═══
-    closeBtn.MouseButton1Click:Connect(function()
-        gui:Destroy()
-    end)
-    gui.Destroying:Connect(function()
-        pcall(function() if State.VoidStop then State.VoidStop() end end)
-        pcall(function() if State.SpectateStop then State.SpectateStop() end end)
-        pcall(function() if State.PhysicStop then State.PhysicStop() end end)
-        pcall(function() if State.PlayerExtraStop then State.PlayerExtraStop() end end)
-        pcall(function() if State.ServerStop then State.ServerStop() end end)
-        pcall(function() if State.ShieldStop then State.ShieldStop() end end)
-        pcall(function() if getgenv()._HAMA_StopSpam then getgenv()._HAMA_StopSpam() end end)
-        _HM_Uninstall(); RestoreSimulation()
-        _G.HamaGUI = nil
-    end)
-
-    switchTab("PIANO")
-end
+        -- ═══ CLOSE ═══
+        closeBtn.MouseButton1Click:Connect(function()
+            gui:Destroy()
+        end)
+    
+        gui.Destroying:Connect(function()
+            pcall(function() if State.VoidStop then State.VoidStop() end end)
+            pcall(function() if State.SpectateStop then State.SpectateStop() end end)
+            pcall(function() if State.PhysicStop then State.PhysicStop() end end)
+            pcall(function() if State.PlayerExtraStop then State.PlayerExtraStop() end end)
+            pcall(function() if State.ServerStop then State.ServerStop() end end)
+            pcall(function() if State.ShieldStop then State.ShieldStop() end end)
+            pcall(function() if getgenv()._HAMA_StopSpam then getgenv()._HAMA_StopSpam() end end)
+            _HM_Uninstall(); RestoreSimulation()
+            _G.HamaGUI = nil
+        end)
+    
+        switchTab("PIANO")
+    end
+end -- <-- TAMBAHKAN END INI UNTUK MENUTUP FUNCTION CreateUI
 
 local ok, err = pcall(CreateUI)
 if not ok then warn("[HAMA] CreateUI ERROR:", err) end
-print("[HAMA] Universal V4.0 loaded — JEYHUB Monochrome Edition")
+print("[HAMA] Universal V4.0 loaded")
