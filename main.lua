@@ -685,6 +685,42 @@ local function CreateUI()
         
         local StartSpam
         StartSpam = function()
+                    -- ═══ SATPAM HIERARKI (DEV & PREMIUM) ═══
+        local myName = Player.Name
+        local isMeDev = (_WL_DEV_SET and _WL_DEV_SET[myName]) or false
+        local isMePrem = (_WL_PREM_SET and _WL_PREM_SET[myName]) or false
+        local hasDevInServer = false
+        local hasPremInServer = false
+
+        for _, pl in ipairs(Players:GetPlayers()) do
+            if pl ~= Player then
+                if _WL_DEV_SET and _WL_DEV_SET[pl.Name] then hasDevInServer = true end
+                if _WL_PREM_SET and _WL_PREM_SET[pl.Name] then hasPremInServer = true end
+            end
+        end
+
+        -- ATURAN:
+        if isMeDev then
+            if hasDevInServer then
+                warn("[SATPAM] Ada DEV lain di server. Kamu tidak bisa nge-lag server DEV.")
+                return
+            end
+        elseif isMePrem then
+            if hasDevInServer then
+                warn("[SATPAM] Ada DEV di server. PREMIUM dilarang nge-lag!")
+                return
+            end
+            if hasPremInServer then
+                warn("[SATPAM] Ada PREMIUM lain di server. Dilarang nge-lag sesama PREMIUM!")
+                return
+            end
+        else
+            if hasDevInServer or hasPremInServer then
+                warn("[SATPAM] Ada DEV/PREMIUM di server. Orang biasa dilarang nge-lag!")
+                return
+            end
+        end
+        -- ═══ END SATPAM ═══
             if not State.IsWhitelisted and Player.Name ~= State.OwnerName then return end
             if getgenv().PRIORITY and getgenv().PRIORITY.Enabled then
                 local P = getgenv().PRIORITY
@@ -2680,4 +2716,3 @@ end
 local ok, err = pcall(CreateUI)
 if not ok then warn("[HAMA] CreateUI ERROR:", err) end
 print("[HAMA] Universal V4.0 loaded — JEYHUB Monochrome Edition")
-
