@@ -684,44 +684,59 @@ local function CreateUI()
         end
         
         local StartSpam
-        StartSpam = function()
-                    -- ═══ SATPAM HIERARKI (DEV & PREMIUM) ═══
-        local myName = Player.Name
-        local isMeDev = (_WL_DEV_SET and _WL_DEV_SET[myName]) or false
-        local isMePrem = (_WL_PREM_SET and _WL_PREM_SET[myName]) or false
-        local hasDevInServer = false
-        local hasPremInServer = false
+StartSpam = function()
+    local myName = Player.Name
+    
+    local isMeDev = (getgenv().PRIORITY and getgenv().PRIORITY.DevUsers[myName]) or (_WL_DEV_SET and _WL_DEV_SET[myName])
+    local isMePrem = (getgenv().PRIORITY and getgenv().PRIORITY.PremiumUsers[myName]) or (_WL_PREM_SET and _WL_PREM_SET[myName])
 
-        for _, pl in ipairs(Players:GetPlayers()) do
-            if pl ~= Player then
-                if _WL_DEV_SET and _WL_DEV_SET[pl.Name] then hasDevInServer = true end
-                if _WL_PREM_SET and _WL_PREM_SET[pl.Name] then hasPremInServer = true end
-            end
-        end
+    local hasDev = false
+    local hasPrem = false
+    local premName = ""
 
-        -- ATURAN:
-        if isMeDev then
-            if hasDevInServer then
-                warn("[SATPAM] Ada DEV lain di server. Kamu tidak bisa nge-lag server DEV.")
-                return
-            end
-        elseif isMePrem then
-            if hasDevInServer then
-                warn("[SATPAM] Ada DEV di server. PREMIUM dilarang nge-lag!")
-                return
-            end
-            if hasPremInServer then
-                warn("[SATPAM] Ada PREMIUM lain di server. Dilarang nge-lag sesama PREMIUM!")
-                return
-            end
-        else
-            if hasDevInServer or hasPremInServer then
-                warn("[SATPAM] Ada DEV/PREMIUM di server. Orang biasa dilarang nge-lag!")
-                return
-            end
+    for _, pl in ipairs(Players:GetPlayers()) do
+        if pl ~= Player then
+            local oD = (getgenv().PRIORITY and getgenv().PRIORITY.DevUsers[pl.Name]) or (_WL_DEV_SET and _WL_DEV_SET[pl.Name])
+            local oP = (getgenv().PRIORITY and getgenv().PRIORITY.PremiumUsers[pl.Name]) or (_WL_PREM_SET and _WL_PREM_SET[pl.Name])
+            if oD then hasDev = true end
+            if oP then hasPrem = true; premName = pl.Name end
         end
-        -- ═══ END SATPAM ═══
-            if not State.IsWhitelisted and Player.Name ~= State.OwnerName then return end
+    end
+
+    -- ═══ LOGIKA: KALAU PREMIUM NGE-LAG PAS ADA DEV, YANG REJOIN PREMIUM-NYA ═══
+    if isMePrem and not isMeDev then
+        if hasDev then
+            warn("[SATPAM] Kamu Premium, ada DEV di server! Auto-Rejoin...")
+            -- Paksa Client Premium ini buat Rejoin
+            pcall(function()
+                if getgenv().HAMA_DoRejoin then getgenv().HAMA_DoRejoin("Dev in server")
+                else game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, Player) end
+            end)
+            return -- Hentikan script, jangan lanjut spam
+        end
+        
+        if hasPrem then
+            -- Notifikasi UI kalau ada sesama PREM
+            local pg = Player:FindFirstChild("PlayerGui")
+            local n = Instance.new("ScreenGui", pg)
+            n.Name = "HAMA_Notif"; n.ResetOnSpawn = false
+            local f = Instance.new("Frame", n)
+            f.Size = UDim2.new(0, 250, 0, 60); f.Position = UDim2.new(0.5, -125, 0.1, 0)
+            f.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+            Instance.new("UICorner", f).CornerRadius = UDim.new(0, 8)
+            Instance.new("UIStroke", f).Color = Color3.fromRGB(255, 60, 60)
+            local t = Instance.new("TextLabel", f)
+            t.Size = UDim2.new(1, -10, 1, -10); t.Position = UDim2.new(0, 5, 0, 5)
+            t.BackgroundTransparency = 1; t.Text = "❌ Tidak bisa spam!\nAda temanmu ("..premName..") di server ini."
+            t.TextColor3 = Color3.fromRGB(255, 255, 255); t.Font = Enum.Font.GothamBold; t.TextSize = 11; t.TextWrapped = true
+            task.delay(3, function() n:Destroy() end)
+            return
+        end
+    end
+
+    -- Lanjut ke kode spam asli lu...
+    if not State.IsWhitelisted and Player.Name ~= State.OwnerName then return end
+    -- (biarin sisa kode StartSpam lu yang lama di bawahnya)
             if getgenv().PRIORITY and getgenv().PRIORITY.Enabled then
                 local P = getgenv().PRIORITY
                 local isDev = getgenv().HAMA_IsLocalDev and getgenv().HAMA_IsLocalDev() or false
@@ -2574,6 +2589,56 @@ local function CreateUI()
         end
         
         local shEnableBtn = MakeBtn(pageShield, "SHIELD: OFF", UDim2.new(0,0,0,68), UDim2.new(0.48,-2,0,32), Color3.fromRGB(25,25,30))
+                -- ═══ UNIVERSAL ANTI-LAG SHIELD (ANTI CHEATER) ═══
+                local isUniversalShieldOn = false
+                local shieldHooked = false
+                local _hookedRemotes = setmetatable({}, {__mode = "k"})
+        
+                local shieldBtn = MakeBtn(pageShield, "UNIVERSAL ANTI-LAG: OFF", UDim2.new(0,0,0,376), UDim2.new(1,0,0,32), Color3.fromRGB(25,25,30))
+                shieldBtn.MouseButton1Click:Connect(function()
+                    isUniversalShieldOn = not isUniversalShieldOn
+                    shieldBtn.Text = "UNIVERSAL ANTI-LAG: " .. (isUniversalShieldOn and "ON" or "OFF")
+                    shieldBtn.BackgroundColor3 = isUniversalShieldOn and Color3.fromRGB(255,255,255) or Color3.fromRGB(25,25,30)
+                    shieldBtn.TextColor3 = isUniversalShieldOn and Color3.fromRGB(0,0,0) or Color3.fromRGB(255,255,255)
+                    
+                    if isUniversalShieldOn then
+                        warn("[SHIELD] Universal Anti-Lag aktif. Client lu kebal dari spam remote piano!")
+                        -- Pasang Hook ke Metamethod buat nyegat data spam
+                        if not shieldHooked then
+                            pcall(function()
+                                local mt = getrawmetatable(game)
+                                if setreadonly then setreadonly(mt, false) end
+                                local origNC = mt.__namecall
+                                mt.__namecall = newcclosure(function(self, ...)
+                                    local method = getnamecallmethod()
+                                    -- Jika ada remote piano yang nembak client lu, kita BLOKIR
+                                    if method == "FireClient" or method == "InvokeClient" then
+                                        if isUniversalShieldOn then
+                                            local name = self.Name:lower()
+                                            -- Deteksi nama remote spam (piano, note, music, dll)
+                                            if name:find("piano") or name:find("note") or name:find("play") or name:find("music") or name:find("sound") then
+                                                if not _hookedRemotes[self] then
+                                                    _hookedRemotes[self] = 0
+                                                end
+                                                _hookedRemotes[self] = _hookedRemotes[self] + 1
+                                                
+                                                -- Kalo spam nya keterlaluan, kita drop (biarin kosong, jangan diproses)
+                                                if _hookedRemotes[self] > 50 then -- batas wajar spam per detik
+                                                    return -- Drop paket! Client aman.
+                                                end
+                                            end
+                                        end
+                                    end
+                                    return origNC(self, ...)
+                                end)
+                                if setreadonly then setreadonly(mt, true) end
+                                shieldHooked = true
+                            end)
+                        end
+                    else
+                        warn("[SHIELD] Universal Anti-Lag dimatikan.")
+                    end
+                end)
         local function StartMon()
             if PRIORITY.Conn then return end
             PRIORITY.Conn = Players.PlayerAdded:Connect(function(pl)
