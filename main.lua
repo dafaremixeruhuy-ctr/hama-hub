@@ -21,6 +21,118 @@ local Workspace = Services.Workspace
 local RepStorage = Services.ReplicatedStorage
 local Players = Services.Players
 
+-- ═══ SISTEM WHITELIST BARU (DEV & PREMIUM) ═══
+local _DEV_URL = "https://raw.githubusercontent.com/dafaremixeruhuy-ctr/hama-hub/refs/heads/main/dev.txt"
+local _PREM_URL = "https://raw.githubusercontent.com/dafaremixeruhuy-ctr/hama-hub/refs/heads/main/premium.txt"
+
+local function FetchWhitelist(url)
+    local body
+    pcall(function()
+        body = game:HttpGet(url)
+    end)
+    if not body then
+        pcall(function()
+            if syn and syn.request then
+                body = syn.request({Url = url, Method = "GET"}).Body
+            elseif request then
+                body = request({Url = url, Method = "GET"}).Body
+            end
+        end)
+    end
+    return body
+end
+
+local function IsNameInList(body, playerName)
+    if not body or body == "" then return false end
+    for line in body:gmatch("[^\r\n]+") do
+        local name = line:match("^%s*(.-)%s*$")
+        if name == playerName then
+            return true
+        end
+    end
+    return false
+end
+
+local function CheckAccess()
+    local playerName = game.Players.LocalPlayer.Name
+    
+    -- Owner bypass
+    if playerName == "dpnvhr" or playerName == "fire6uns" then
+        return true, "OWNER"
+    end
+
+    local devBody = FetchWhitelist(_DEV_URL)
+    if IsNameInList(devBody, playerName) then
+        return true, "DEV"
+    end
+
+    local premBody = FetchWhitelist(_PREM_URL)
+    if IsNameInList(premBody, playerName) then
+        return true, "PREMIUM"
+    end
+
+    return false, "Nama kamu ("..playerName..") tidak ada di Whitelist DEV maupun PREMIUM!"
+end
+
+-- Eksekusi pengecekan
+local isAllowed, role = CheckAccess()
+
+if not isAllowed then
+    -- Tampilkan GUI Ditolak
+    local pg = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "HAMA_DENIED"
+    gui.ResetOnSpawn = false
+    gui.Parent = pg
+
+    local main = Instance.new("Frame", gui)
+    main.Size = UDim2.new(0, 320, 0, 160)
+    main.Position = UDim2.new(0.5, 0, 0.5, 0)
+    main.AnchorPoint = Vector2.new(0.5, 0.5)
+    main.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+    Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
+    
+    local stroke = Instance.new("UIStroke", main)
+    stroke.Color = Color3.fromRGB(200, 50, 50)
+    stroke.Thickness = 2
+
+    local title = Instance.new("TextLabel", main)
+    title.Size = UDim2.new(1, -20, 0, 40)
+    title.Position = UDim2.new(0, 10, 0, 10)
+    title.BackgroundTransparency = 1
+    title.Text = "❌ ACCESS DENIED"
+    title.TextColor3 = Color3.fromRGB(255, 60, 60)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 20
+
+    local desc = Instance.new("TextLabel", main)
+    desc.Size = UDim2.new(1, -20, 0, 50)
+    desc.Position = UDim2.new(0, 10, 0, 50)
+    desc.BackgroundTransparency = 1
+    desc.Text = role
+    desc.TextColor3 = Color3.fromRGB(200, 200, 200)
+    desc.Font = Enum.Font.GothamMedium
+    desc.TextSize = 11
+    desc.TextWrapped = true
+
+    local close = Instance.new("TextButton", main)
+    close.Size = UDim2.new(1, -20, 0, 30)
+    close.Position = UDim2.new(0, 10, 1, -40)
+    close.BackgroundColor3 = Color3.fromRGB(50, 20, 20)
+    close.Text = "Tutup (Close)"
+    close.TextColor3 = Color3.fromRGB(255, 255, 255)
+    close.Font = Enum.Font.GothamBold
+    close.TextSize = 12
+    Instance.new("UICorner", close).CornerRadius = UDim.new(0, 6)
+    
+    close.MouseButton1Click:Connect(function()
+        gui:Destroy()
+    end)
+
+    return -- Hentikan script di sini
+end
+-- ═══ END WHITELIST ═══
+
 local State = {
     OwnerName = "dpnvhr", IsWhitelisted = true,
     PianoSpamming = false, SelectedRemote = nil, SelectedPiano = nil, FoundPianos = {},
